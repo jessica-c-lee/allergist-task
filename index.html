@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  	<title>Allergist Demo</title>
+  	<script src="jspsych-6.1.0/jspsych.js"></script>
+  	<link href="jspsych-6.1.0/css/jspsych.css" rel="stylesheet" type="text/css"></link>
+  	<script src="jspsych-6.1.0/plugins/jspsych-html-button-response.js"></script>
+    <script src="jspsych-6.1.0/plugins/jspsych-survey-html-form.js"></script>
+    <script src="jspsych-6.1.0/plugins/jspsych-instructions.js"></script>
+    <script src="jspsych-6.1.0/plugins/jspsych-survey-multi-choice.js"></script>
+    <script src="jspsych-6.1.0/custom/jspsych-allergist-slider.js"></script>
+    <script src="jspsych-6.1.0/plugins/jspsych-survey-text.js"></script>
+    <script src="jatos.js"></script>
+  </head>
+  <body>
+
+  </body>
+  <script>
+
+  //----------------------------------------------------------------------------
+  /* experiment parameters */
+
+  var groups = ["NA", "NA"];
+  let group = "" + jsPsych.randomization.sampleWithReplacement(groups, 1) + "";
+  var samples = ["MTurk", "SONA", "SONA-online"];
+  let sample = samples[2];
+  var completion_code = (Math.floor(Math.random() * 9999999)).toString();
+
+  // number of blocks
+  var n_blocks_train = 1; // note: each block contains 2 reps of each trial type
+  var n_blocks_test = 1; // ditto for test
+
+  // timing
+  var iti = 2000;
+  var feedback_duration = 2000;
+  var stagger_slider = 1000;
+
+  // labels for likelihood scale
+  var outcome_text = 'ALLERGIC REACTION';
+  var anchor_left = 'Definitely NO ';
+  var anchor_right = 'Definitely ';
+  var rating_labels = [
+    '<p>' + anchor_left + '<br>' + outcome_text + '</p>',
+    '<p>' + anchor_right + '<br>' + outcome_text + '</p>'
+  ];
+
+  // images used as cues
+  var image_list = [
+    './img/apple.jpg',
+    './img/banana.jpg',
+    './img/broccoli.jpg',
+    './img/carrot.jpg',
+    './img/beef.jpg',
+    './img/chicken.jpg',
+    './img/bread.jpg',
+    './img/pasta.jpg',
+    './img/butter.jpg',
+    './img/cheese.jpg'
+  ];
+  images = jsPsych.randomization.repeat(image_list, 1, false);
+
+  // get cue images
+  var cue_A_img = images[0];
+  var cue_B_img = images[1];
+  var cue_C_img = images[2];
+  var cue_D_img = images[3];
+  var cue_E_img = images[4];
+
+  // get clean cue names
+  var cue_A = images[0].substr(6).slice(0,-4);
+  var cue_B = images[1].substr(6).slice(0,-4);
+  var cue_C = images[2].substr(6).slice(0,-4);
+  var cue_D = images[3].substr(6).slice(0,-4);
+  var cue_E = images[4].substr(6).slice(0,-4);
+
+  // images used as outcomes in training
+  var outcomes = [
+    './img/no_reaction.jpg',       // 0
+    './img/allergic_reaction.jpg'  // 1
+  ];
+
+  // other images
+  var other_images = [
+    './img/mr_x.jpg',
+    './img/ms_y.jpg',
+    './img/blankC.jpg',
+    './img/plus.jpg',
+    './img/blank_outcome.jpg',
+    './img/logo.png'
+  ];
+
+  //--------------------------------------------------------------------------
+  /* functions */
+
+  // function that checks for adjacent duplicates based on trial code
+  function CheckDupes(x) {
+    var result = [];
+    var input = Array.isArray(x) ? x : x.split('');
+    var extract = [];
+    for (let i = 0; i < input.length; ++i) {
+      extract += input[i].trial_code
+    }
+    for (let i = 0; i < extract.length; ++i) {
+      if (extract[i] === extract[i + 1]) continue
+      result.push(extract[i])
+    }
+    if (result.length === x.length) {
+      return false
+    } else {
+      return true
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  /* instructions text */
+
+  var consent_text = [
+    '<img src= "./img/logo.png"></img>' +
+    '<p>Welcome to the experiment!</p>' +
+    '<p>Before you begin, please read the information sheet carefully (you can download the pdf <a href="https://jessicaleephd.files.wordpress.com/2020/03/pis_sona-1-15.pdf" target="_blank">here</a>).</p>' +
+    '<p><i>[Insert information statement and consent form]</i></p>' +
+    '<p>By continuing, you are making a decision whether or not to participate.  Clicking the button below indicates that, having read the information provided on the participant information sheet, you consent to the above.' +
+    '<br></p>'
+  ];
+
+  var demo_text = [
+    '<p> Gender: ' +
+    '<input type="radio" name="gender" value="male" required/> Male &nbsp; ' +
+    '<input type="radio" name="gender" value="female" required/> Female &nbsp;' +
+    '<input type="radio" name="gender" value="other" required/> Other<br>' + '<br>' +
+    '<p> Age: <input name="age" type="text" required/> </p>' + '<br>' +
+    '<p> Native language: <input name="language" type="text" required/> </p>' + '<br>'
+  ];
+
+  var ins = {};
+
+  ins.pretrain1 = [
+    '<p>Pre-train instructions... </p>'
+  ];
+
+  ins.pretrain2 = [
+    '<p>More instructions... </p>'
+  ];
+
+  ins.pretest = [
+    '<p>Pre-test instructions... </p>'
+  ];
+
+  // instruction check
+  var Q0_text = "<b>Question 1:</b> The aim of the task is to:";
+  var Q0_answers = ["Correct answer", "Incorrect answer"];
+  var Q1_text = "<b>Question 2:</b> On each trial, I need to: ";
+  var Q1_answers = ["This is incorrect", "This is correct"];
+  var Q2_text = "<b>Question 3:</b> Insert true statement. ";
+  var Q2_answers = ["TRUE", "FALSE"];
+  var correctstring = '{"Q0":"' + Q0_answers[0] +
+    '","Q1":"' + Q1_answers[1] +
+    '","Q2":"' + Q2_answers[0] +
+    '"}';
+
+  ins.debrief = [
+    '<p>Thank you for completing this study! </p>' +
+    '<p>Debrief debrief debrief... </p>'
+  ];
+
+  //--------------------------------------------------------------------------
+  /* prompt text */
+
+  var cover_text = '<p><font size="+2" color="black"> ' +
+    'Mr X eats: </font></p>';
+
+  var feedback_cover_text = '<p><font size="+2" color="black">' +
+    'Mr X eats: </font></p>';
+
+  var prompt = {};
+
+  prompt.train = '<p><font size="+2">Please rate the likelihood that Mr X will show <br>an allergic reaction after eating this meal. </font></p>';
+
+  prompt.test = prompt.train;
+
+  //--------------------------------------------------------------------------
+  /* define the trial types for training
+  A+ AB+ CD+ E- */
+
+  // A+
+  var trial_type_A = [
+    {
+      // A
+      trial_type: 'A',
+      trial_code: '1',
+      stimulus_left: ['./img/blankC.jpg'],
+      stimulus_centre: [cue_A_img],
+      stimulus_right: ['./img/blankC.jpg'],
+      correct_outcome: outcomes[1],
+      data: {
+        cue1: 'A',
+        cue2: ''
+      }
+    },
+    {
+      // A
+      trial_type: 'A',
+      trial_code: '1',
+      stimulus_left: ['./img/blankC.jpg'],
+      stimulus_centre: [cue_A_img],
+      stimulus_right: ['./img/blankC.jpg'],
+      correct_outcome: outcomes[1],
+      data: {
+        cue1: 'A',
+        cue2: 'B'
+      }
+    }
+  ];
+
+  // AB+
+  var trial_type_AB = [
+    {
+      // AB
+      trial_type: 'AB',
+      trial_code: '2',
+      stimulus_left: [cue_A_img],
+      stimulus_centre: ['./img/plus.jpg'],
+      stimulus_right: [cue_B_img],
+      correct_outcome: outcomes[1],
+      data: {
+        cue1: 'B',
+        cue2: 'A'
+      }
+    },
+    {
+      // BA
+      trial_type: 'AB',
+      trial_code: '2',
+      stimulus_left: [cue_B_img],
+      stimulus_centre: ['./img/plus.jpg'],
+      stimulus_right: [cue_A_img],
+      correct_outcome: outcomes[1],
+      data: {
+        cue1: 'A',
+        cue2: ''
+      }
+    }
+  ];
+
+  // CD+
+  var trial_type_CD = [
+    {
+      // CD
+      trial_type: 'CD',
+      trial_code: '3',
+      stimulus_left: [cue_C_img],
+      stimulus_centre: ['./img/plus.jpg'],
+      stimulus_right: [cue_D_img],
+      correct_outcome: outcomes[1],
+      data: {
+        cue1: 'C',
+        cue2: 'D'
+      }
+    },
+    {
+      // DC
+      trial_type: 'CD',
+      trial_code: '3',
+      stimulus_left: [cue_D_img],
+      stimulus_centre: ['./img/plus.jpg'],
+      stimulus_right: [cue_C_img],
+      correct_outcome: outcomes[1],
+      data: {
+        cue1: 'D',
+        cue2: 'C'
+      }
+    }
+  ];
+
+  // E-
+  var trial_type_E = [
+    {
+      // E
+      trial_type: 'E',
+      trial_code: '4',
+      stimulus_left: ['./img/blankC.jpg'],
+      stimulus_centre: [cue_E_img],
+      stimulus_right: ['./img/blankC.jpg'],
+      correct_outcome: outcomes[0],
+      data: {
+        cue1: 'E',
+        cue2: ''
+      }
+    },
+    {
+      // E
+      trial_type: 'E',
+      trial_code: '4',
+      stimulus_left: ['./img/blankC.jpg'],
+      stimulus_centre: [cue_E_img],
+      stimulus_right: ['./img/blankC.jpg'],
+      correct_outcome: outcomes[0],
+      data: {
+        cue1: 'E',
+        cue2: ''
+      }
+    }
+  ];
+
+  // randomise training trials
+  var dupeCount = 0;
+  var dupes = true;
+  while (dupes === true) {
+    var block;
+    var train_stim_rand = [];
+    for (block = 0; block < n_blocks_train; block++) {
+      var rand_A = jsPsych.randomization.shuffle(trial_type_A);
+      var rand_AB = jsPsych.randomization.shuffle(trial_type_AB);
+      var rand_CD = jsPsych.randomization.shuffle(trial_type_CD);
+      var rand_E = jsPsych.randomization.shuffle(trial_type_E);
+
+      var train_stim_0 = [rand_A[0], rand_AB[0], rand_CD[0], rand_E[0]];
+      var train_stim_1 = [rand_A[1], rand_AB[1], rand_CD[1], rand_E[1]];
+
+      train_stim_rand = train_stim_rand.concat(jsPsych.randomization.shuffle(train_stim_0)).concat(jsPsych.randomization.shuffle(train_stim_1));
+    }
+    dupeCount += 1;
+    dupes = CheckDupes(train_stim_rand);
+  }
+
+  //--------------------------------------------------------------------------
+  /* define the trial types for test
+  training: A AB CD E B C D */
+
+  // B
+  var trial_type_B = [
+    {
+      // B
+      trial_type: 'B',
+      trial_code: '5',
+      stimulus_left: ['./img/blankC.jpg'],
+      stimulus_centre: [cue_B_img],
+      stimulus_right: ['./img/blankC.jpg'],
+      correct_outcome: ['./img/blank_outcome.jpg'],
+      data: {
+        cue1: 'B',
+        cue2: ''
+      }
+    },
+    {
+      // B
+      trial_type: 'B',
+      trial_code: '5',
+      stimulus_left: ['./img/blankC.jpg'],
+      stimulus_centre: [cue_B_img],
+      stimulus_right: ['./img/blankC.jpg'],
+      correct_outcome: ['./img/blank_outcome.jpg'],
+      data: {
+        cue1: 'B',
+        cue2: ''
+      }
+    }
+  ];
+
+  // C
+  var trial_type_C = [
+    {
+      // C
+      trial_type: 'C',
+      trial_code: '6',
+      stimulus_left: ['./img/blankC.jpg'],
+      stimulus_centre: [cue_C_img],
+      stimulus_right: ['./img/blankC.jpg'],
+      correct_outcome: ['./img/blank_outcome.jpg'],
+      data: {
+        cue1: 'C',
+        cue2: ''
+      }
+    },
+    {
+      // C
+      trial_type: 'C',
+      trial_code: '6',
+      stimulus_left: ['./img/blankC.jpg'],
+      stimulus_centre: [cue_C_img],
+      stimulus_right: ['./img/blankC.jpg'],
+      correct_outcome: ['./img/blank_outcome.jpg'],
+      data: {
+        cue1: 'C',
+        cue2: ''
+      }
+    }
+  ];
+
+  // D
+  var trial_type_D = [
+    {
+      // D
+      trial_type: 'D',
+      trial_code: '7',
+      stimulus_left: ['./img/blankC.jpg'],
+      stimulus_centre: [cue_D_img],
+      stimulus_right: ['./img/blankC.jpg'],
+      correct_outcome: ['./img/blank_outcome.jpg'],
+      data: {
+        cue1: 'D',
+        cue2: ''
+      }
+    },
+    {
+      // D
+      trial_type: 'D',
+      trial_code: '7',
+      stimulus_left: ['./img/blankC.jpg'],
+      stimulus_centre: [cue_D_img],
+      stimulus_right: ['./img/blankC.jpg'],
+      correct_outcome: ['./img/blank_outcome.jpg'],
+      data: {
+        cue1: 'D',
+        cue2: ''
+      }
+    }
+  ];
+
+  // randomise test trials
+  var dupes_test = true;
+  while (dupes_test === true) {
+    var block_test;
+    var test_stim_rand = [];
+    for (block_test = 0; block_test < n_blocks_test; block_test++) {
+      var rand_A = jsPsych.randomization.shuffle(trial_type_A);
+      var rand_AB = jsPsych.randomization.shuffle(trial_type_AB);
+      var rand_CD = jsPsych.randomization.shuffle(trial_type_CD);
+      var rand_E = jsPsych.randomization.shuffle(trial_type_E);
+      var rand_B = jsPsych.randomization.shuffle(trial_type_B);
+      var rand_C = jsPsych.randomization.shuffle(trial_type_C);
+      var rand_D = jsPsych.randomization.shuffle(trial_type_D);
+
+      var test_stim_0 = [
+        rand_A[0], rand_AB[0], rand_CD[0], rand_E[0], rand_B[0], rand_C[0], rand_D[0]
+      ];
+      var test_stim_1 = [
+        rand_A[1], rand_AB[1], rand_CD[1], rand_E[1], rand_B[1], rand_C[1], rand_D[1]
+      ];
+
+      test_stim_rand = test_stim_rand.concat(jsPsych.randomization.shuffle(test_stim_0)).concat(jsPsych.randomization.shuffle(test_stim_1));
+
+    }
+    dupes_test = CheckDupes(test_stim_rand);
+  }
+
+  //----------------------------------------------------------------------------
+
+	// initialise timeline
+  var introloop = [];
+	var timeline = [];
+
+  // info statement and consent
+  var consent_block = {
+		type: 'html-button-response',
+		stimulus: consent_text,
+		choices: ['I consent to participate'],
+    data: {
+      phase: 'consent'
+    }
+	}
+
+  // demographics
+  var demographics_block = {
+    type: 'survey-html-form',
+    preamble: '<p><b>Please fill in your demographic details</b></p>',
+    html: demo_text,
+    data: {
+      phase: 'demographics'
+    }
+  };
+
+  //----------------------------------------------------------------------------
+  /* introloop:
+  - includes instructions, instruction check, and splash screen
+  - loops continuously until participant gets questions correct */
+
+  // define general instructions
+  var gen_ins_block = {
+    type: 'instructions',
+    pages: [
+      ins.pretrain1,
+      ins.pretrain2
+      ],
+    allow_keys: false,
+    show_clickable_nav: true,
+    post_trial_gap: iti,
+    data: {
+      phase: 'instructions'
+    }
+  };
+  introloop.push(gen_ins_block);
+
+  // define instruction check block
+  var instructioncorrect = false;
+  var instruction_check = {
+    type: "survey-multi-choice",
+    preamble: ["<p align='center'><b>Check your knowledge before you begin!</b></p>"],
+    questions: [
+      {prompt: Q0_text, options: Q0_answers, required: true},
+      {prompt: Q1_text, options: Q1_answers, required: true},
+      {prompt: Q2_text, options: Q2_answers, required: true}
+        ],
+    on_finish: function(data) {
+      if( data.responses == correctstring) {
+        action = false;
+        instructioncorrect = true;
+      }
+    }
+  }
+  introloop.push(instruction_check);
+
+  // define a page for the incorrect response
+  var showsplash = true;
+  var splash_screen = {
+    type: 'html-button-response',
+    choices: ['Click here to read the instructions again'],
+    stimulus: '<center>Unfortunately, at least one of your answers was incorrect.</center>'
+  }
+
+  // push it to a conditional node that only shows it if the response was wrong
+  var conditional_splash = {
+    timeline: [splash_screen],
+    conditional_function: function(data) {
+          return !instructioncorrect // skip if correct
+      }
+  }
+  introloop.push(conditional_splash);
+
+  // add all to loop node and push to timeline
+  var loop_node = {
+    timeline: introloop,
+    loop_function: function(data) {
+          //var action = true;
+          return !instructioncorrect // stop looping if correct
+      }
+  }
+
+  // success trial
+  var successtrial = {
+    type: 'html-button-response',
+    post_trial_gap: 0,
+    choices: ['Click here to start the experiment'],
+    stimulus: '<center>Well done!</center>'
+  };
+
+  //----------------------------------------------------------------------------
+  /* experiment blocks */
+
+  // training phase
+  var train_block = {
+    type: 'allergist-slider',
+    cover_text: cover_text,
+    feedback_cover_text: feedback_cover_text,
+    min: 0,
+    max: 100,
+    start: 50,
+    step: 1,
+    labels: rating_labels,
+    prompt: prompt.train,
+    button_label: 'Continue',
+    stagger_slider: stagger_slider,
+    timing_feedback_duration: feedback_duration,
+    post_trial_gap: iti,
+    timeline: train_stim_rand,
+    data: {
+      phase: 'train'
+    }
+  };
+
+  // test instructions
+  var test_ins_block = {
+    type: 'instructions',
+    pages: ins.pretest,
+    allow_keys: false,
+    show_clickable_nav: true,
+    button_label_next: 'Next',
+    post_trial_gap: iti
+  };
+
+  // test phase
+  var test_block = {
+    type: 'allergist-slider',
+    cover_text: cover_text,
+    min: 0,
+    max: 100,
+    start: 50,
+    step: 1,
+    labels: rating_labels,
+    prompt: prompt.test,
+    button_label: 'Continue',
+    stagger_slider: stagger_slider,
+    stagger_feedback: 0,
+    feedback_duration: 0,
+    post_trial_gap: iti,
+    timeline: test_stim_rand,
+    data: {
+      phase: 'test'
+    }
+  };
+
+  // debrief
+  var debrief_block = {
+		type: 'html-button-response',
+		stimulus: ins.debrief,
+		choices: ["I acknowledge that I have received this debriefing information"],
+    data: {
+      phase: 'debrief'
+    }
+	}
+
+  // contact info
+  var contact_block = {
+    type: 'survey-text',
+    questions: [
+      {
+        prompt: 'If you would like to receive a copy of the study results via email, please provide your email address below. <br>Your email address will be used for this purpose only, and will not be stored alongside your data.',
+        placeholder: 'You may leave this blank if you wish',
+        rows: 1,
+        columns: 50
+      }
+    ],
+    data: {
+      phase: 'contact'
+    }
+  };
+
+  //----------------------------------------------------------------------------
+  /* construct timeline */
+
+  timeline.push(consent_block);
+  timeline.push(demographics_block);
+  timeline.push(loop_node);
+  timeline.push(successtrial);
+  timeline.push(train_block);
+  timeline.push(test_ins_block);
+  timeline.push(test_block);
+  timeline.push(debrief_block);
+  timeline.push(contact_block);
+
+  //----------------------------------------------------------------------------
+	/* start experiment */
+
+  jatos.onLoad(function() {
+
+    // subject info
+    var finish_url_base = jatos.studyJsonInput.finish_url_base; // get completion URL from json input under "Properties"
+    var sona_id = jatos.urlQueryParameters.id;
+    if (sona_id === undefined) {
+      sona_id = null;
+    }
+    var completion_url = null;
+    if (sona_id) {
+      // if sona ID, form the URL for auto-crediting
+      completion_url = finish_url_base + sona_id;
+    }
+    else {
+      completion_url = "https://unsw-psy.sona-systems.com";
+    }
+
+    if (sample === "MTurk") {
+      var finish_msg = 'All done!<br><br>Your completion code is <span id="completion_code" style="font-weight:bold;font-size:130%">' + completion_code + '</span>. To receive payment for the HIT, return to the Amazon Mechanical Turk page and enter this code. Please contact us if something goes wrong and we\'ll fix it as quickly as possible.';
+    } else if (sample === "SONA") {
+      var finish_msg = 'All done! Please let the experimenter know.';
+    } else if (sample === "SONA-online") {
+      var finish_msg = 'All done! Your Sona ID is ' + sona_id + '. If anything goes wrong, please email us with this ID number. Click <a href="' + completion_url + '">here</a> to be returned to Sona and receive your credit.';
+    }
+
+    // add properties to each trial in the jsPsych data
+    jsPsych.data.addProperties({
+        group: group,
+        sona_id: sona_id,
+        completion_code: completion_code,
+        cue_A: cue_A,
+        cue_B: cue_B,
+        cue_C: cue_C,
+        cue_D: cue_D,
+        cue_E: cue_E
+    });
+
+  	jsPsych.init({
+  		timeline: timeline,
+  		preload_images: [images, outcomes, other_images],
+      on_finish: function() {
+        var result = jsPsych.data.get().json();
+        jatos.submitResultData(result, function() {
+          document.write('<div id="endscreen" class="endscreen" style="width:1000px"><div class="endscreen" style="text-align:center; border:0px solid; padding:10px; font-size:120%; width:800px; float:right"><p><br><br><br>' +
+          finish_msg +
+          '</p></div></div>')
+        });
+      }
+
+  	});
+
+  });
+
+  </script>
+</html>
